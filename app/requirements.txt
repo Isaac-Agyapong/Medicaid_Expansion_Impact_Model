@@ -1,0 +1,10 @@
+# Streamlit Community Cloud installs this file for app/app.py.
+# Versions are pinned to the ones the model was trained and saved with (models/causal_forest.joblib).
+streamlit==1.51.0
+econml==0.17.0
+scikit-learn==1.7.2
+numpy==2.3.2
+pandas==2.3.3
+scipy==1.16.2
+plotly==6.4.0
+joblib==1.5.2
