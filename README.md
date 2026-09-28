@@ -11,9 +11,9 @@ to answer two questions properly:
 1. How much did Medicaid expansion itself help?
 2. If the ten remaining states expanded, how many more people would have health insurance?
 
-### ▶ Live app: link added after deployment
+### ▶ [Try the live app: medicaid-expansion-impact.streamlit.app](https://medicaid-expansion-impact.streamlit.app)
 
-[![Web app](Image/app_overview.png)](app/app.py)
+[![Web app](Image/app_overview.png)](https://medicaid-expansion-impact.streamlit.app)
 
 ## What I found
 
@@ -68,7 +68,7 @@ The app has four pages:
 |---|---|
 | ![](Image/app_try_the_model.png) | ![](Image/app_what_if.png) |
 
-To run it on your own computer: `streamlit run app/app.py`
+Open it online at **[medicaid-expansion-impact.streamlit.app](https://medicaid-expansion-impact.streamlit.app)**, or run it on your own computer with `streamlit run app/app.py`.
 
 ## What to keep in mind
 
