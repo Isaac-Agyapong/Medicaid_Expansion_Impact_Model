@@ -274,5 +274,5 @@ with tab4:
   expansion would work as it did in similar counties and are not enrollment forecasts.
 """)
     st.markdown('<div class="note">Code and full write-up: github.com/Isaac-Agyapong/Medicaid_Expansion_Impact_Model · '
-                'Analytics and Power BI dashboard: github.com/Isaac-Agyapong/Health-Insurance-Coverage-Gap-Analysis</div>',
+                'Analytics and Power BI dashboard: github.com/Isaac-Agyapong/Health_Insurance_Coverage_Gap_Analysis</div>',
                 unsafe_allow_html=True)
