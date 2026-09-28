@@ -27,6 +27,14 @@ FEATURES = ["base_rate", "pre_trend", "base_rate_138_400", "poverty_pct_2013", "
 GEOJSON = "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json"
 STATE_NAMES = {"TX": "Texas", "FL": "Florida", "GA": "Georgia", "TN": "Tennessee", "SC": "South Carolina", "AL": "Alabama",
                "MS": "Mississippi", "KS": "Kansas", "WI": "Wisconsin", "WY": "Wyoming"}
+ALL_STATES = dict(AL="Alabama", AK="Alaska", AZ="Arizona", AR="Arkansas", CA="California", CO="Colorado", CT="Connecticut",
+                  DE="Delaware", DC="District of Columbia", FL="Florida", GA="Georgia", HI="Hawaii", ID="Idaho", IL="Illinois",
+                  IN="Indiana", IA="Iowa", KS="Kansas", KY="Kentucky", LA="Louisiana", ME="Maine", MD="Maryland",
+                  MA="Massachusetts", MI="Michigan", MN="Minnesota", MS="Mississippi", MO="Missouri", MT="Montana",
+                  NE="Nebraska", NV="Nevada", NH="New Hampshire", NJ="New Jersey", NM="New Mexico", NY="New York",
+                  NC="North Carolina", ND="North Dakota", OH="Ohio", OK="Oklahoma", OR="Oregon", PA="Pennsylvania",
+                  RI="Rhode Island", SC="South Carolina", SD="South Dakota", TN="Tennessee", TX="Texas", UT="Utah",
+                  VT="Vermont", VA="Virginia", WA="Washington", WV="West Virginia", WI="Wisconsin", WY="Wyoming")
 ICON = {  # inline SVG icons (stroke = currentColor)
     "down": '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>',
     "people": '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17" cy="9" r="2.8"/><path d="M16 14.2c3 .3 5.5 2.4 5.5 5.8"/></svg>',
@@ -137,6 +145,9 @@ st.markdown(f"""
   .foot {{ text-align: center; color: {GREY}; font-size: 13px; margin-top: 26px; }}
   .foot a {{ color: {BLUE}; text-decoration: none; font-weight: 600; }}
   [data-testid="stSlider"] [role="slider"] {{ background: {BLUE}; }}
+  .stButton button {{ border-radius: 999px; border: 1px solid #E4E7EC; background: #fff; color: {INK}; font-weight: 600;
+                      font-size: 13px; padding: 6px 12px; min-height: 38px; }}
+  .stButton button:hover {{ border-color: {BLUE}; color: {BLUE}; background: {BLUE_SOFT}; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -270,64 +281,133 @@ with tab2:
                          hide_index=True, use_container_width=True, height=420)
 
 # --------------------------------------------------------------------------------------------- 3. try the model
+PERSON = ('<svg viewBox="0 0 24 24" width="100%" height="100%"><circle cx="12" cy="6.2" r="4.2" fill="{c}"/>'
+          '<path d="M4 22c0-5 3.6-8.6 8-8.6s8 3.6 8 8.6z" fill="{c}"/></svg>')
+QUICK = ["Harris County, TX", "Miami-Dade County, FL", "Fulton County, GA", "Hidalgo County, TX", "Cook County, IL",
+         "Los Angeles County, CA"]
+SLIDERS = [("base_rate", "Share of low-income adults uninsured", 2.0, 75.0, 0.5, "%.1f%%"),
+           ("poverty_pct_2013", "Poverty rate", 2.0, 55.0, 0.5, "%.1f%%"),
+           ("pct_hispanic_2013", "Hispanic share of residents", 0.0, 99.0, 0.5, "%.1f%%"),
+           ("median_income_2013", "Median household income", 20000.0, 130000.0, 1000.0, "$%d")]
+
+
+def people_grid(still, gain, colour_gain, colour_still):
+    """100 person icons, filled row by row: still uninsured, then gaining coverage, then already insured."""
+    cells = []
+    for i in range(100):
+        c = colour_still if i < still else colour_gain if i < still + gain else "#DDE2EA"
+        cells.append(f'<div style="width:100%;aspect-ratio:1">{PERSON.format(c=c)}</div>')
+    return ('<div style="display:grid;grid-template-columns:repeat(20,minmax(0,1fr));gap:5px 5px;margin:10px 0 8px 0;max-width:100%">'
+            + "".join(cells) + "</div>")
+
+
+def county_locator(row):
+    try:
+        st_counties = COUNTIES[COUNTIES.state == row.state]
+        z = (st_counties.county_fips == row.county_fips).astype(int)
+        fig = go.Figure(go.Choropleth(geojson=load_geojson(), locations=st_counties.county_fips, z=z, featureidkey="id",
+                                      colorscale=[[0, "#E4E9F2"], [1, ORANGE if pd.isna(row.expansion_year) else BLUE]],
+                                      showscale=False, marker_line_color="#FFFFFF", marker_line_width=0.5,
+                                      text=st_counties.county_name, hovertemplate="%{text}<extra></extra>"))
+        fig.update_geos(fitbounds="locations", visible=False, bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(base_layout(fig, 190), use_container_width=True, config=CFG)
+    except Exception:
+        pass
+
+
+def pick_county(label):
+    st.session_state.county = label
+
+
 with tab3:
     labels = (COUNTIES.county_name + ", " + COUNTIES.state).tolist()
+    st.session_state.setdefault("county", "Harris County, TX")
     with card():
-        head("Live model", "Pick any county and see what the model estimates",
-             "For counties in states that expanded, it estimates how much their expansion helped. For the others, it "
-             "estimates what expanding now would do. Then change the county's situation and watch the answer move.")
-        choice = st.selectbox("County", labels, index=labels.index("Harris County, TX") if "Harris County, TX" in labels else 0)
+        k1, k2 = st.columns([1, 1.25], gap="large")
+        with k1:
+            head("Live model", "Pick any county and see what the model estimates",
+                 "The machine learning model runs live on the county you choose.")
+            st.selectbox("Search for a county", labels, key="county")
+        with k2:
+            st.markdown('<div style="height:34px"></div><div class="card-k" style="color:#98A2B3">Or try one of these</div>',
+                        unsafe_allow_html=True)
+            cols = st.columns(3)
+            for i, q in enumerate(QUICK):
+                cols[i % 3].button(q.replace(" County", ""), key=f"quick{i}", on_click=pick_county, args=(q,),
+                                   use_container_width=True)
+
+    choice = st.session_state.county
     row = COUNTIES.iloc[labels.index(choice)]
+    fips = row.county_fips
     expanded = pd.notna(row.expansion_year)
     colour, soft = (BLUE, BLUE_SOFT) if expanded else (ORANGE, ORANGE_SOFT)
-    c1, c2 = st.columns([1, 1.1], gap="medium")
-    with c1, card():
+
+    # sliders live in the right column but their values drive the estimate on the left, so read them first
+    defaults = {"base_rate": float(round(row.base_rate, 1)), "poverty_pct_2013": float(round(row.poverty_pct_2013, 1)),
+                "pct_hispanic_2013": float(round(row.pct_hispanic_2013, 1)), "median_income_2013": float(row.median_income_2013)}
+    for key, *_ in SLIDERS:
+        st.session_state.setdefault(f"{key}_{fips}", defaults[key])
+
+    x = row[FEATURES].astype(float).copy()
+    for key, *_ in SLIDERS:
+        v = st.session_state[f"{key}_{fips}"]
+        if v != defaults[key]:                       # keep the county's exact value unless a slider was moved
+            if key == "median_income_2013":
+                x["log_income_2013"] = np.log(v)
+            else:
+                x[key] = v
+    moved = any(st.session_state[f"{k}_{fips}"] != defaults[k] for k, *_ in SLIDERS)
+    base = float(x["base_rate"])
+    X = x.values.reshape(1, -1)
+    eff = float(model.effect(X)[0])
+    lo, hi = model.effect_interval(X, alpha=0.05)
+    after = max(base + eff, 0.0)
+    adults = -eff / 100 * row.low_income_adults_base
+    same_state = COUNTIES[COUNTIES.state == row.state]
+    rank = int((same_state.adults_gaining > row.adults_gaining).sum()) + 1
+
+    left, right = st.columns([1.35, 1], gap="medium")
+    with left, card():
         status = f"Expanded Medicaid in {int(row.expansion_year)}" if expanded else "Has not expanded Medicaid"
-        st.markdown(f'<span class="pill" style="background:{soft};color:{colour}">{status}</span>'
+        st.markdown(f'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">'
+                    f'<div><div class="card-k">Model estimate{" · what-if" if moved else ""}</div>'
+                    f'<div class="card-h" style="font-size:28px">{choice}</div></div></div>'
+                    f'<span class="pill" style="background:{soft};color:{colour}">{status}</span>'
                     f'<span class="pill" style="background:#F2F4F7;color:{INK_2}">{row.rurality}</span>'
-                    f'<span class="pill" style="background:#F2F4F7;color:{INK_2}">as of {int(row.base_year)}</span>',
+                    f'<span class="pill" style="background:#F2F4F7;color:{INK_2}">'
+                    f'#{rank} of {len(same_state)} {ALL_STATES.get(row.state, row.state)} counties for people gaining</span>',
                     unsafe_allow_html=True)
-        head("Change the county", "What if this county were different?")
-        base = st.slider("Share of low-income adults uninsured (%)", 2.0, 75.0, float(round(row.base_rate, 1)), 0.5)
-        pov = st.slider("Poverty rate (%)", 2.0, 55.0, float(round(row.poverty_pct_2013, 1)), 0.5)
-        hisp = st.slider("Hispanic share of residents (%)", 0.0, 99.0, float(round(row.pct_hispanic_2013, 1)), 0.5)
-        income = st.slider("Median household income ($)", 20000, 130000, int(row.median_income_2013), 1000, format="$%d")
-        x = row[FEATURES].astype(float).copy()
-        # use the county's exact values unless a slider was moved (sliders round to their step)
-        if base != float(round(row.base_rate, 1)):
-            x["base_rate"] = base
-        if pov != float(round(row.poverty_pct_2013, 1)):
-            x["poverty_pct_2013"] = pov
-        if hisp != float(round(row.pct_hispanic_2013, 1)):
-            x["pct_hispanic_2013"] = hisp
-        if income != int(row.median_income_2013):
-            x["log_income_2013"] = np.log(income)
-        base = x["base_rate"]
-        X = x.values.reshape(1, -1)
-        eff = float(model.effect(X)[0])
-        lo, hi = model.effect_interval(X, alpha=0.05)
-        adults = -eff / 100 * row.low_income_adults_base
-    with c2, card():
-        verb = "Expansion cut the share uninsured here by about" if expanded else "Expanding would cut the share uninsured here by about"
-        head("Model estimate", choice)
-        st.markdown(f'<div class="big" style="color:{colour}">{abs(eff):.1f}<small> in 100</small></div>'
-                    f'<div class="lbl">{verb} {abs(eff):.1f} in every 100 low-income adults</div>'
-                    f'<div class="sub">likely between {abs(hi[0]):.1f} and {abs(lo[0]):.1f} in 100</div>',
+        before_lbl, after_lbl = ("Before expansion", "After expansion") if expanded else ("Uninsured today", "If the state expanded")
+        gain_lbl = "insured because of expansion" if expanded else "would gain health insurance"
+        tiles = [(before_lbl, f"{base:.0f}%", "of low-income adults uninsured", INK, "#F8FAFC"),
+                 (after_lbl, f"{after:.0f}%", f"likely {base + lo[0]:.0f}% to {base + hi[0]:.0f}%", colour, soft),
+                 ("People", f"{adults:,.0f}", gain_lbl, GREEN, GREEN_SOFT)]
+        st.markdown('<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0 4px 0">' + "".join(
+            f'<div style="background:{bg};border-radius:14px;padding:14px 16px"><div class="sub" style="margin:0">{t}</div>'
+            f'<div class="num" style="color:{c};font-size:30px;margin-top:4px">{v}</div><div class="sub">{s}</div></div>'
+            for t, v, s, c, bg in tiles) + "</div>", unsafe_allow_html=True)
+        still, gain = round(after), round(base) - round(after)
+        st.markdown(f'<div class="lbl" style="margin-top:16px">Out of every 100 low-income adults in {row.county_name}</div>'
+                    + people_grid(still, gain, GREEN, colour)
+                    + f'<div style="display:flex;gap:18px;font-size:13px;color:{INK_2};flex-wrap:wrap">'
+                      f'<span><b style="color:{colour}">●</b> {still} still uninsured</span>'
+                      f'<span><b style="color:{GREEN}">●</b> {gain} {"gained" if expanded else "would gain"} coverage</span>'
+                      f'<span><b style="color:#C4CBD6">●</b> {100 - still - gain} already insured</span></div>',
                     unsafe_allow_html=True)
-        fig = go.Figure(go.Bar(x=[base, base + eff], y=["Uninsured today" if not expanded else "Before expansion",
-                                                         "If expanded" if not expanded else "After expansion"],
-                               orientation="h", marker=dict(color=["#CBD2DC", colour], cornerradius=8),
-                               text=[f"{base:.0f}%", f"{base + eff:.0f}%"], textposition="outside",
-                               textfont=dict(size=18, color=INK), width=0.6))
-        fig.update_xaxes(visible=False, range=[0, max(base, 5) * 1.3])
-        fig.update_yaxes(autorange="reversed", tickfont=dict(size=13, color=INK_2))
-        st.plotly_chart(base_layout(fig, 170), use_container_width=True, config=CFG)
-        st.markdown(f'<div class="stat" style="box-shadow:none;background:{soft};padding:16px 18px">'
-                    f'<div class="ic" style="background:#fff;color:{colour}">{ICON["people"]}</div><div>'
-                    f'<div class="num">{adults:,.0f}</div>'
-                    f'<div class="lbl">{"adults insured because of expansion" if expanded else "more adults would have health insurance"}</div>'
-                    f'<div class="sub">out of {row.low_income_adults_base:,.0f} low-income adults in this county</div></div></div>',
-                    unsafe_allow_html=True)
+
+    with right:
+        with card():
+            head("Where it is", f"{row.county_name}, {ALL_STATES.get(row.state, row.state)}")
+            county_locator(row)
+        with card():
+            head("What if", "Change the county and watch the estimate move")
+            for key, label, lo_, hi_, step, fmt in SLIDERS:
+                st.slider(label, lo_, hi_, step=step, format=fmt, key=f"{key}_{fips}")
+
+            def reset():
+                for k, *_ in SLIDERS:
+                    st.session_state[f"{k}_{fips}"] = defaults[k]
+            st.button("Reset to the real county", on_click=reset, use_container_width=True, disabled=not moved)
 
 # --------------------------------------------------------------------------------------------- 4. how it works
 with tab4:
