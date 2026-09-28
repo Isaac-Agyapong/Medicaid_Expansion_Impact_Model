@@ -82,7 +82,7 @@ To run it on your own computer: `streamlit run app/app.py`
 
 US Census Bureau health insurance estimates for 3,035 counties from 2008 to 2023, and KFF records of when each
 state expanded. The data was cleaned and checked in my companion project,
-[Health Insurance Coverage Gap Analysis](https://github.com/Isaac-Agyapong/Medicaid_Expansion_Coverage_Analysis),
+[Health Insurance Coverage Gap Analysis](https://github.com/Isaac-Agyapong/Health-Insurance-Coverage-Gap-Analysis),
 which also has a Power BI dashboard.
 
 ## Tools used

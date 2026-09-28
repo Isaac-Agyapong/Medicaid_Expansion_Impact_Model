@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Model dataset: the county panel built by the analytics project
--- (github.com/Isaac-Agyapong/Medicaid_Expansion_Coverage_Analysis, database medicaid_coverage).
+-- (github.com/Isaac-Agyapong/Health-Insurance-Coverage-Gap-Analysis, database medicaid_coverage).
 --
 -- One row per county per year, 2008-2023, for the 3,035 counties in the balanced panel of the
 -- 46 states in the study (the 5 states that covered low-income adults before 2014 are excluded).

@@ -3,7 +3,7 @@
     python run_all.py              full rebuild (~5 min)
     python run_all.py --skip-data  reuse the committed Data/county_panel.csv.gz (no database needed)
 
-Step 1 reads the PostgreSQL database built by the analytics project (Medicaid_Expansion_Coverage_Analysis).
+Step 1 reads the PostgreSQL database built by the analytics project (Health-Insurance-Coverage-Gap-Analysis).
 """
 import subprocess
 import sys

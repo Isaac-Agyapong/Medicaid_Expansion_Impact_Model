@@ -1,6 +1,6 @@
 """Export the model dataset from the analytics database to Data/county_panel.csv.gz.
 
-The database is built by the analytics project (Medicaid_Expansion_Coverage_Analysis, `python run_all.py`).
+The database is built by the analytics project (Health-Insurance-Coverage-Gap-Analysis, `python run_all.py`).
 The exported file is small (3,035 counties x 16 years) and committed, so everything after this step, including the
 web app, runs without a database.
 
